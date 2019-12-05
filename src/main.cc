@@ -7,12 +7,15 @@
 
 using namespace std;
 
+void processData(string s, ofstream &o, ofstream &oBinary);
+
 int main()
 {
     unsigned int receiveCounter = 1;
     cout << "USB test program" << endl;
     ofstream ofile;
-    USBInterface dev("/dev/ttyACM2");
+    ofstream ofileBinary; 
+    USBInterface dev("/dev/ttyACM1");
 
     double max = 0.0;
     double min = 0.0;
@@ -24,6 +27,7 @@ int main()
     while(1)
     {
         sval += dev.readFromDev();
+        
         if(sval.find("Start") != string::npos)
         {
             if(openFile == true)
@@ -36,55 +40,25 @@ int main()
             stringstream filename;
             filename << "./receive/receive" << receiveCounter << ".csv";
             ofile.open(filename.str(), ios::out);
+            filename.clear();
+            filename.str("");
+            filename << "./receive/receiveBin" << receiveCounter << ".csv";
+            ofileBinary.open(filename.str(), ios::out);
+                        
             openFile = true;
             receiveCounter++;
             sampleNumber = 0;
             sval.erase();
-            continue;
         }
-        else if(sval.find("Stop") != string::npos) 
+        
+        if(sval.find("Stop") != string::npos && openFile)
         {
-            cout << "Received " << sampleNumber << " samples" << endl;
+            cout << "Found Stop" << endl;
+            processData(sval, ofile, ofileBinary);
             ofile.close();
+            ofileBinary.close();
             openFile = false;
-            sval.erase();
-            continue;
         }
-        
-        if(openFile && sval.size() != 0)
-        {
-            for(int i = 0; i < sval.size(); i+=2)
-            {
-                long value;
-                char c1, c2; 
-                
-                c1 = sval[i];
-                c2 = sval[i+1];
-                
-                if( (c1 & 0xC0)  | (c2 & 0x03) != 0)
-                {
-                    bitset<8> x(c1);
-                    cout << "c1: " << x;
-                    bitset<8> x2(c2);
-                    cout << "\tc2: " << x2;
-                    cout << "\t\tsample: " << sampleNumber+1 << endl;
-                    i++;
-                    continue;
-                }
-                
-                value = ((( int)c1 & 0x0F)  * 256) ; // high byte 
-                value += c2; //low byte
-                if(value > 16000)
-                {
-                    cout << "Value: " << value << endl;
-                    cout << "C1: " << ( int) c1 << "\t val: " << ((( int)c1 & 0x0F)  * 256) << endl;
-                    cout << "C2: " << ( int) c2 << "\t val: " << ( int)c2 << endl;
-                }
-                ofile << sampleNumber << ", " << (double)value*3.3/pow(2,12) - 1.65 << endl;
-                sampleNumber++;
-            }
-        }
-        
     }
     /*
     for(int i = 0; i < 10000; i++)
@@ -124,5 +98,30 @@ int main()
         //cout << "Rx:  " << sval << endl;
         cout << "Val: " << (double)value*3.3/pow(2,12) - 1.6 << endl; 
         cout << flush;
+    }
+}
+
+
+void processData(string s, ofstream &o, ofstream &oBinary)
+{
+    s.erase(s.find("Stop"));
+    unsigned int count = 0;
+    int value; 
+    for(int i = 0; i < s.size(); i+=2)
+    {
+        char c1 = s[i];
+        char c2 = s[i+1];
+        bitset<8> B1(c1);
+        bitset<8> B2(c2);
+        
+        
+        value = (unsigned int) ((c1 & 0x0F)  << 8) ; // high byte 
+        value += c2; //low byte
+        
+        o << count << ", " << (double)value*3.3/pow(2,12) << endl;
+        oBinary << count << ", " <<  B1 << ", " << B2 << endl;
+        
+        count ++;
+        
     }
 }
