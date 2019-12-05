@@ -5,5 +5,5 @@ The combination of the MCU  with this program will allow the testing of audio am
 
 ## Currently Working On
 
-Each ADC sampe is 2 bytes. Reading from the Linux input stream may not return the whole buffer transmitted 
-from the MCU. Some overhead is needed to make sure the alignement of the bytes is knonw. 
+Implementing FFT
+
